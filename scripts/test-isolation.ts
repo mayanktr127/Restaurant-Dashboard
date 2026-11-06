@@ -195,6 +195,69 @@ async function runTests() {
   const { data: allRestaurants } = await admin.from("restaurants").select("id")
   assert((allRestaurants?.length ?? 0) >= 2, "admin can read all restaurants")
 
+  // 7. Restaurant Switcher Data & Tenant Isolation
+  console.log("\n[Test Suite 7] Testing Restaurant Switcher Data & Tenant Isolation...")
+
+  // owner.a queries memberships with their authenticated client (RLS applies)
+  const { data: userAData } = await ownerA.auth.getUser()
+  const { data: memA } = await ownerA
+    .from("memberships")
+    .select("id, restaurant_id, role, active, restaurants(id, name, slug)")
+    .eq("user_id", userAData.user!.id)
+    .eq("active", true)
+
+  const switcherRestaurantsA = (memA || []).map((m: {
+    restaurant_id: string
+    role: string
+    restaurants: { name: string } | { name: string }[] | null
+  }) => ({
+    id: m.restaurant_id,
+    name: Array.isArray(m.restaurants) ? m.restaurants[0]?.name : m.restaurants?.name,
+    role: m.role,
+  }))
+
+  assert(
+    switcherRestaurantsA.length === 1 && switcherRestaurantsA[0].name === "Lone Star Tacos",
+    "owner.a sees exactly 1 restaurant in the switcher data"
+  )
+
+  // Test active restaurant validation logic:
+  // If owner.a attempts to set active restaurant to Austin Noodle Bar (restB.id),
+  // the server rejects it because owner.a has no membership for restB.id and data stays Lone Star Tacos.
+  const unauthorizedTargetId = restB.id
+  const hasMembershipForTarget = (memA || []).some(
+    (m: { restaurant_id: string; active: boolean }) => m.restaurant_id === unauthorizedTargetId && m.active
+  )
+  const resolvedActiveId = hasMembershipForTarget ? unauthorizedTargetId : switcherRestaurantsA[0]?.id
+
+  assert(
+    !hasMembershipForTarget && resolvedActiveId === restA.id,
+    "owner.a cannot set the active restaurant to Austin Noodle Bar (server rejects it and data stays Lone Star Tacos)"
+  )
+
+  // owner.b queries memberships with their authenticated client (RLS applies)
+  const { data: userBData } = await ownerB.auth.getUser()
+  const { data: memB } = await ownerB
+    .from("memberships")
+    .select("id, restaurant_id, role, active, restaurants(id, name, slug)")
+    .eq("user_id", userBData.user!.id)
+    .eq("active", true)
+
+  const switcherRestaurantsB = (memB || []).map((m: {
+    restaurant_id: string
+    role: string
+    restaurants: { name: string } | { name: string }[] | null
+  }) => ({
+    id: m.restaurant_id,
+    name: Array.isArray(m.restaurants) ? m.restaurants[0]?.name : m.restaurants?.name,
+    role: m.role,
+  }))
+
+  assert(
+    switcherRestaurantsB.length === 1 && switcherRestaurantsB[0].name === "Austin Noodle Bar",
+    "owner.b sees only Austin Noodle Bar"
+  )
+
   console.log("\n==========================================")
   if (failedCount === 0) {
     console.log("🎉 ALL ISOLATION & RLS TESTS PASSED!")

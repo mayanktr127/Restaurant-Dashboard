@@ -84,8 +84,13 @@ async function seed() {
   })
   console.log("  ✓ admin@demo.test set in platform_admins")
 
-  // 3. Clean existing demo restaurants to be safe to re-run
+  // 3. Clean existing demo restaurants and memberships to be safe to re-run
   console.log("Cleaning previous demo data...")
+  const allUserIds = Object.values(userIds)
+  if (allUserIds.length > 0) {
+    await supabase.from("memberships").delete().in("user_id", allUserIds)
+  }
+  await supabase.from("memberships").delete().in("email", DEMO_USERS.map((u) => u.email))
   await supabase.from("restaurants").delete().in("slug", ["lone-star-tacos", "austin-noodle-bar"])
 
   // 4. Create Restaurant A: Lone Star Tacos

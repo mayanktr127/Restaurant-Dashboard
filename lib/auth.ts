@@ -170,8 +170,8 @@ export async function getUserContext(): Promise<UserContext | null> {
         }
       }
 
-      if (membershipsData && membershipsData.length > 0) {
-        const memberships: UserMembership[] = membershipsData.map((m: {
+      if (isAdmin || (membershipsData && membershipsData.length > 0)) {
+        const memberships: UserMembership[] = (membershipsData || []).map((m: {
           id: string
           user_id: string
           restaurant_id: string
@@ -217,45 +217,45 @@ export async function getUserContext(): Promise<UserContext | null> {
     const devInfo = DEV_USERS[user.email]
     const isAdmin = devInfo.role === "admin"
 
-    const loneStarMembership: UserMembership = {
-      id: "dev-mem-1",
-      user_id: user.id,
-      restaurant_id: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-      role: (isAdmin ? "owner" : devInfo.role) as "owner" | "manager",
-      display_name: devInfo.name,
-      email: user.email,
-      active: true,
-      restaurant: {
-        id: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-        name: "Lone Star Tacos",
-        slug: "lone-star-tacos",
-        logo_url: null,
-      },
-    }
-
-    const noodleBarMembership: UserMembership = {
-      id: "dev-mem-2",
-      user_id: user.id,
-      restaurant_id: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
-      role: "owner",
-      display_name: devInfo.name,
-      email: user.email,
-      active: true,
-      restaurant: {
-        id: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
-        name: "Austin Noodle Bar",
-        slug: "austin-noodle-bar",
-        logo_url: null,
-      },
-    }
-
     let memberships: UserMembership[] = []
     if (isAdmin) {
-      memberships = [loneStarMembership, noodleBarMembership]
+      memberships = [] // Admin has platform_admins only (no memberships)
     } else if (user.email === "owner.b@demo.test") {
-      memberships = [noodleBarMembership]
+      memberships = [
+        {
+          id: "dev-mem-2",
+          user_id: user.id,
+          restaurant_id: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
+          role: "owner",
+          display_name: devInfo.name,
+          email: user.email,
+          active: true,
+          restaurant: {
+            id: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
+            name: "Austin Noodle Bar",
+            slug: "austin-noodle-bar",
+            logo_url: null,
+          },
+        },
+      ]
     } else {
-      memberships = [loneStarMembership]
+      memberships = [
+        {
+          id: "dev-mem-1",
+          user_id: user.id,
+          restaurant_id: "529510ac-c83f-4be5-875b-5c1b8390fe12",
+          role: devInfo.role as "owner" | "manager",
+          display_name: devInfo.name,
+          email: user.email,
+          active: true,
+          restaurant: {
+            id: "529510ac-c83f-4be5-875b-5c1b8390fe12",
+            name: "Lone Star Tacos",
+            slug: "lone-star-tacos",
+            logo_url: null,
+          },
+        },
+      ]
     }
 
     return {
@@ -363,11 +363,14 @@ export async function getActiveRestaurantId(): Promise<string | null> {
 
   if (savedRestaurantId) {
     if (context.isAdmin) return savedRestaurantId
-    const hasMembership = context.memberships.some((m) => m.restaurant_id === savedRestaurantId)
+    const hasMembership = context.memberships.some(
+      (m) => m.restaurant_id === savedRestaurantId && m.active
+    )
     if (hasMembership) return savedRestaurantId
   }
 
-  return context.memberships[0]?.restaurant_id || "529510ac-c83f-4be5-875b-5c1b8390fe12"
+  // If user has no membership for that restaurant, ignore it and fall back to their first membership
+  return context.memberships[0]?.restaurant_id || null
 }
 
 /**
