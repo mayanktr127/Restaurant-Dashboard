@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Restaurant Dashboard (MyPlanetServices)
 
-## Getting Started
+Multi-tenant restaurant dashboard and kitchen display system built with Next.js App Router, Tailwind CSS, shadcn/ui, Supabase, and deployed to Cloudflare Workers via `@opennextjs/cloudflare`.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js (v20+ recommended)
+- npm
+- Supabase account & project
+
+## 1. Installation
+
+Clone the repository and install dependencies:
+
+```bash
+npm install
+```
+
+## 2. Environment Variables
+
+Copy the example environment configuration to `.env.local`:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Fill in your configuration values:
+
+```env
+# Supabase credentials (from Supabase Dashboard -> Project Settings -> API)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# App URLs
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_KITCHEN_URL=http://localhost:3000/kitchen
+
+# n8n Webhook Integration
+N8N_SHARED_SECRET=your-shared-secret
+N8N_READY_WEBHOOK_URL=https://n8n.your-domain.com/webhook/order-ready
+```
+
+## 3. Development Server
+
+Start the local Next.js development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Available routes:
+- `/` - Root portal
+- `/login` - Magic link & dev login
+- `/app` - Restaurant Owner & Manager area
+- `/kitchen` - Kitchen Display System (dark mode)
+- `/kitchen/pair` - Kitchen device pairing screen
+- `/admin` - Platform Admin area
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 4. Build & Preview
 
-## Learn More
+Test the production Next.js build:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Preview locally with Cloudflare Worker runtime (Wrangler):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run preview
+```
 
-## Deploy on Vercel
+## 5. Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deploy the application to Cloudflare Workers:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run deploy
+```
