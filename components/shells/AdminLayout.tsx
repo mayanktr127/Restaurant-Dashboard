@@ -44,8 +44,7 @@ export function AdminLayout({ children, userEmail = "" }: AdminLayoutProps) {
       const supabase = createClient()
       await supabase.auth.signOut(globalScope ? { scope: "global" } : undefined)
     } finally {
-      router.push("/login")
-      router.refresh()
+      window.location.href = "/login"
     }
   }
 

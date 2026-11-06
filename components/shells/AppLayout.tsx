@@ -144,8 +144,7 @@ export function AppLayout({
       const supabase = createClient()
       await supabase.auth.signOut(globalScope ? { scope: "global" } : undefined)
     } finally {
-      router.push("/login")
-      router.refresh()
+      window.location.href = "/login"
     }
   }
 

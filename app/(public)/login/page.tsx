@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, Mail, ArrowLeft, ShieldCheck, KeyRound, Loader2, AlertCircle } from "lucide-react"
@@ -23,6 +23,12 @@ export default function LoginPage() {
   const [devEmail, setDevEmail] = useState("owner.a@demo.test")
   const [devPassword, setDevPassword] = useState("DemoPass123!")
   const [isDevLoading, setIsDevLoading] = useState(false)
+
+  // Ensure fresh interactive state whenever login page is mounted or returned to
+  useEffect(() => {
+    setIsDevLoading(false)
+    setIsLoading(false)
+  }, [])
 
   const handleMagicLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -76,8 +82,8 @@ export default function LoginPage() {
         return
       }
 
-      router.push(data.destination || "/app")
-      router.refresh()
+      // Hard navigation to ensure all session cookies, layout data & server components hydrate cleanly
+      window.location.href = data.destination || "/app"
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Dev login failed")
       setIsDevLoading(false)
