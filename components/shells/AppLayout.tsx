@@ -114,13 +114,11 @@ function SearchParamAlert() {
 
 export function AppLayout({
   children,
-  userEmail = "owner.a@demo.test",
-  userName = "Alice Owner",
+  userEmail = "",
+  userName = "User",
   userRole = "owner",
-  activeRestaurant = { id: "529510ac-c83f-4be5-875b-5c1b8390fe12", name: "Lone Star Tacos" },
-  availableRestaurants = [
-    { id: "529510ac-c83f-4be5-875b-5c1b8390fe12", name: "Lone Star Tacos", role: "owner" },
-  ],
+  activeRestaurant = { id: "", name: "" },
+  availableRestaurants = [],
 }: AppLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()

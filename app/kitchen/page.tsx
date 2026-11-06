@@ -36,8 +36,11 @@ export default async function KitchenPage() {
   const restaurantId =
     kitchenMembership?.restaurant_id ||
     activeRestaurantId ||
-    context.memberships[0]?.restaurant_id ||
-    "00000000-0000-0000-0000-000000000010"
+    context.memberships[0]?.restaurant_id
+
+  if (!restaurantId) {
+    redirect("/kitchen/pair")
+  }
 
   const kitchenData = await getKitchenData(restaurantId)
 

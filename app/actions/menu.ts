@@ -41,83 +41,8 @@ const AddItemSchema = z.object({
   tags: z.array(z.string()).default([]),
 })
 
-// Dev fallback stores
-const DEV_CATEGORIES: CategoryRecord[] = [
-  { id: "00000000-0000-0000-0000-000000000201", restaurant_id: "00000000-0000-0000-0000-000000000010", name: "Signature Tacos", sort_order: 1, visible: true },
-  { id: "00000000-0000-0000-0000-000000000202", restaurant_id: "00000000-0000-0000-0000-000000000010", name: "Starters & Dips", sort_order: 2, visible: true },
-  { id: "00000000-0000-0000-0000-000000000203", restaurant_id: "00000000-0000-0000-0000-000000000010", name: "Sides & Drinks", sort_order: 3, visible: true },
-]
-
-const DEV_MENU_ITEMS: MenuItemRecord[] = [
-  {
-    id: "00000000-0000-0000-0000-000000000301",
-    restaurant_id: "00000000-0000-0000-0000-000000000010",
-    category_id: "00000000-0000-0000-0000-000000000201",
-    name: "Smoked Brisket Taco",
-    description: "14-hour Texas oak smoked prime brisket, pickled red onion, salsa verde",
-    price_cents: 450,
-    photo_url: "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=600&auto=format&fit=crop&q=80",
-    available: true,
-    visible: true,
-    sort_order: 1,
-    tags: ["gluten-free"],
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000302",
-    restaurant_id: "00000000-0000-0000-0000-000000000010",
-    category_id: "00000000-0000-0000-0000-000000000201",
-    name: "Baja Crispy Fish Taco",
-    description: "Beer-battered cod, chipotle crema, shredded purple cabbage, fresh lime",
-    price_cents: 500,
-    photo_url: "https://images.unsplash.com/photo-1512838243191-e81e88cc8f54?w=600&auto=format&fit=crop&q=80",
-    available: true,
-    visible: true,
-    sort_order: 2,
-    tags: [],
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000303",
-    restaurant_id: "00000000-0000-0000-0000-000000000010",
-    category_id: "00000000-0000-0000-0000-000000000201",
-    name: "Charred Avocado & Black Bean Taco",
-    description: "Grilled hass avocado, seasoned black beans, pico de gallo, cilantro",
-    price_cents: 400,
-    photo_url: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&auto=format&fit=crop&q=80",
-    available: false, // marked sold out
-    visible: true,
-    sort_order: 3,
-    tags: ["vegan", "vegetarian", "gluten-free"],
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000304",
-    restaurant_id: "00000000-0000-0000-0000-000000000010",
-    category_id: "00000000-0000-0000-0000-000000000202",
-    name: "Chips & Hand-Crushed Guacamole",
-    description: "Fresh corn tortilla chips with smashed avocado, serrano peppers, lime",
-    price_cents: 550,
-    photo_url: "https://images.unsplash.com/photo-1541544741938-0af808871cc0?w=600&auto=format&fit=crop&q=80",
-    available: true,
-    visible: true,
-    sort_order: 1,
-    tags: ["vegan", "gluten-free"],
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000305",
-    restaurant_id: "00000000-0000-0000-0000-000000000010",
-    category_id: "00000000-0000-0000-0000-000000000203",
-    name: "House-Made Cinnamon Horchata",
-    description: "Traditional rice milk drink, Ceylon cinnamon, piloncillo sugar",
-    price_cents: 400,
-    photo_url: "https://images.unsplash.com/photo-1546173159-315724a31696?w=600&auto=format&fit=crop&q=80",
-    available: true,
-    visible: true,
-    sort_order: 1,
-    tags: ["vegetarian"],
-  },
-]
-
-let devCatsStore = [...DEV_CATEGORIES]
-let devItemsStore = [...DEV_MENU_ITEMS]
+let devCatsStore: CategoryRecord[] = []
+let devItemsStore: MenuItemRecord[] = []
 
 export async function getMenuData(restaurantId: string): Promise<{
   categories: CategoryRecord[]
@@ -136,7 +61,7 @@ export async function getMenuData(restaurantId: string): Promise<{
         admin.from("restaurants").select("manager_can_edit_menu").eq("id", restaurantId).maybeSingle(),
       ])
 
-      if (!catsRes.error && catsRes.data && catsRes.data.length > 0) {
+      if (!catsRes.error && catsRes.data) {
         return {
           categories: catsRes.data,
           items: itemsRes.data || [],
@@ -149,8 +74,8 @@ export async function getMenuData(restaurantId: string): Promise<{
   }
 
   return {
-    categories: devCatsStore,
-    items: devItemsStore,
+    categories: devCatsStore.filter((c) => c.restaurant_id === restaurantId),
+    items: devItemsStore.filter((i) => i.restaurant_id === restaurantId),
     managerCanEditMenu: true,
   }
 }

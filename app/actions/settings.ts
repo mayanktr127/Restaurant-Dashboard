@@ -61,30 +61,34 @@ const CustomerEmailSchema = z.object({
   readyMessage: z.string().min(1),
 })
 
-let devSettingsStore: RestaurantSettings = {
-  id: "00000000-0000-0000-0000-000000000010",
-  name: "Lone Star Tacos",
-  slug: "lone-star-tacos",
-  logo_url: null,
-  brand_color: "#166534",
-  address: "412 E 6th St, Austin, TX 78701",
-  phone: "(512) 555-0199",
-  website: "https://lonestartacos.test",
-  is_open: true,
-  prep_minutes: 15,
-  min_order_cents: 1000,
-  table_contact: "optional",
-  pickup_contact: "email_or_phone",
-  pay_mode: "counter",
-  tax_rate: 8.25,
-  telegram_enabled: false,
-  telegram_chat_id: null,
-  customer_email_sender_name: "Lone Star Tacos Kitchen",
-  customer_email_reply_to: "orders@lonestartacos.test",
-  ready_message: "Your fresh taco order is hot and ready for pickup!",
-  kitchen_can_soldout: true,
-  manager_can_edit_menu: true,
+function getDefaultSettings(restaurantId: string): RestaurantSettings {
+  return {
+    id: restaurantId,
+    name: "Restaurant",
+    slug: "",
+    logo_url: null,
+    brand_color: "#166534",
+    address: "",
+    phone: "",
+    website: "",
+    is_open: true,
+    prep_minutes: 15,
+    min_order_cents: 1000,
+    table_contact: "optional",
+    pickup_contact: "email_or_phone",
+    pay_mode: "counter",
+    tax_rate: 8.25,
+    telegram_enabled: false,
+    telegram_chat_id: null,
+    customer_email_sender_name: "Restaurant Kitchen",
+    customer_email_reply_to: "orders@restaurant.test",
+    ready_message: "Your order is hot and ready for pickup!",
+    kitchen_can_soldout: true,
+    manager_can_edit_menu: true,
+  }
 }
+
+const devSettingsStore: Record<string, RestaurantSettings> = {}
 
 export async function getRestaurantSettings(restaurantId: string): Promise<RestaurantSettings> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
@@ -97,7 +101,7 @@ export async function getRestaurantSettings(restaurantId: string): Promise<Resta
       // Fall through to dev settings
     }
   }
-  return devSettingsStore
+  return devSettingsStore[restaurantId] || getDefaultSettings(restaurantId)
 }
 
 export async function updateRestaurantProfile(
@@ -127,14 +131,15 @@ export async function updateRestaurantProfile(
         logo_url: validated.logoUrl || null,
       }).eq("id", validated.restaurantId)
     } else {
-      devSettingsStore = {
-        ...devSettingsStore,
+      const cur = devSettingsStore[validated.restaurantId] || getDefaultSettings(validated.restaurantId)
+      devSettingsStore[validated.restaurantId] = {
+        ...cur,
         name: validated.name,
-        brand_color: validated.brandColor || devSettingsStore.brand_color,
-        address: validated.address || devSettingsStore.address,
-        phone: validated.phone || devSettingsStore.phone,
-        website: validated.website || devSettingsStore.website,
-        logo_url: validated.logoUrl || devSettingsStore.logo_url,
+        brand_color: validated.brandColor || cur.brand_color,
+        address: validated.address || cur.address,
+        phone: validated.phone || cur.phone,
+        website: validated.website || cur.website,
+        logo_url: validated.logoUrl || cur.logo_url,
       }
     }
 
@@ -177,8 +182,9 @@ export async function updateOrderingSettings(
         pickup_contact: validated.pickupContact,
       }).eq("id", validated.restaurantId)
     } else {
-      devSettingsStore = {
-        ...devSettingsStore,
+      const cur = devSettingsStore[validated.restaurantId] || getDefaultSettings(validated.restaurantId)
+      devSettingsStore[validated.restaurantId] = {
+        ...cur,
         is_open: validated.isOpen,
         prep_minutes: validated.prepMinutes,
         min_order_cents: minOrderCents,
@@ -218,8 +224,9 @@ export async function updatePaymentSettings(
         tax_rate: validated.taxRate,
       }).eq("id", validated.restaurantId)
     } else {
-      devSettingsStore = {
-        ...devSettingsStore,
+      const cur = devSettingsStore[validated.restaurantId] || getDefaultSettings(validated.restaurantId)
+      devSettingsStore[validated.restaurantId] = {
+        ...cur,
         pay_mode: validated.payMode,
         tax_rate: validated.taxRate,
       }
@@ -258,8 +265,9 @@ export async function updateCustomerEmailSettings(
         ready_message: validated.readyMessage,
       }).eq("id", validated.restaurantId)
     } else {
-      devSettingsStore = {
-        ...devSettingsStore,
+      const cur = devSettingsStore[validated.restaurantId] || getDefaultSettings(validated.restaurantId)
+      devSettingsStore[validated.restaurantId] = {
+        ...cur,
         customer_email_sender_name: validated.senderName,
         customer_email_reply_to: validated.replyTo,
         ready_message: validated.readyMessage,
@@ -286,7 +294,11 @@ export async function updateNotificationSettings(restaurantId: string, telegramE
       const admin = createAdminClient()
       await admin.from("restaurants").update({ telegram_enabled: telegramEnabled }).eq("id", restaurantId)
     } else {
-      devSettingsStore.telegram_enabled = telegramEnabled
+      const cur = devSettingsStore[restaurantId] || getDefaultSettings(restaurantId)
+      devSettingsStore[restaurantId] = {
+        ...cur,
+        telegram_enabled: telegramEnabled,
+      }
     }
 
     const actorRole = context.isAdmin ? "admin" : currentMembership?.role || "owner"

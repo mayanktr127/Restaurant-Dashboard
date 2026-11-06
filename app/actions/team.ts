@@ -29,18 +29,8 @@ export interface TeamData {
   }
 }
 
-const DEV_MEMBERS: TeamMember[] = [
-  { id: "mem-1", userId: "user-1", name: "Alice Owner", email: "owner.a@demo.test", role: "owner", joinedAt: "2026-10-15T12:00:00Z" },
-  { id: "mem-2", userId: "user-2", name: "Bob Manager", email: "manager.a@demo.test", role: "manager", joinedAt: "2026-10-20T14:30:00Z" },
-]
-
-const DEV_DEVICES: KitchenDeviceItem[] = [
-  { id: "dev-1", name: "Expediter Station (iPad Pro)", lastSeenAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(), revokedAt: null, status: "online" },
-  { id: "dev-2", name: "Grill Cook Station (Galaxy Tab)", lastSeenAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(), revokedAt: null, status: "idle" },
-]
-
-let devMembersStore = [...DEV_MEMBERS]
-const devDevicesStore = [...DEV_DEVICES]
+let devMembersStore: TeamMember[] = []
+let devDevicesStore: KitchenDeviceItem[] = []
 let devPermissionsStore = { kitchenCanSoldout: true, managerCanEditMenu: true }
 
 export async function getTeamData(restaurantId: string): Promise<TeamData> {
@@ -54,7 +44,7 @@ export async function getTeamData(restaurantId: string): Promise<TeamData> {
         admin.from("restaurants").select("kitchen_can_soldout, manager_can_edit_menu").eq("id", restaurantId).maybeSingle(),
       ])
 
-      if (!membersRes.error && membersRes.data && membersRes.data.length > 0) {
+      if (!membersRes.error && membersRes.data) {
         const members: TeamMember[] = membersRes.data
           .filter((m) => m.role !== "kitchen")
           .map((m) => ({

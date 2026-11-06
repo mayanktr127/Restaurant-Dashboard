@@ -16,6 +16,16 @@ export default async function AppShellLayout({
     redirect("/login")
   }
 
+  // Admin users without restaurant memberships belong in /admin
+  if (context.isAdmin && context.memberships.length === 0) {
+    redirect("/admin")
+  }
+
+  // Users without any memberships
+  if (context.memberships.length === 0) {
+    redirect("/login?error=no_memberships")
+  }
+
   // Kitchen device users are strictly locked to /kitchen
   const isOnlyKitchen =
     !context.isAdmin &&
@@ -48,11 +58,13 @@ export default async function AppShellLayout({
         id: activeRestaurantId,
         name:
           context.memberships.find((m) => m.restaurant_id === activeRestaurantId)?.restaurant
-            ?.name || "Lone Star Tacos",
+            ?.name ||
+          availableRestaurants[0]?.name ||
+          "Restaurant",
       }
     : availableRestaurants[0]
     ? { id: availableRestaurants[0].id, name: availableRestaurants[0].name }
-    : { id: "demo", name: "Lone Star Tacos" }
+    : { id: "", name: "" }
 
   const userName =
     context.user.user_metadata?.full_name ||

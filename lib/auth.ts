@@ -26,74 +26,28 @@ export interface UserContext {
   memberships: UserMembership[]
 }
 
-const DEV_USERS: Record<
-  string,
-  { role: "admin" | "owner" | "manager"; name: string; restaurantId: string }
-> = {
-  "admin@demo.test": {
-    role: "admin",
-    name: "System Admin",
-    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-  },
-  "owner.a@demo.test": {
-    role: "owner",
-    name: "Alice Owner",
-    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-  },
-  "manager.a@demo.test": {
-    role: "manager",
-    name: "Bob Manager",
-    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-  },
-  "owner.b@demo.test": {
-    role: "owner",
-    name: "Charlie Owner",
-    restaurantId: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
-  },
-}
-
 /**
  * Returns the currently authenticated user session or null.
+ * Strictly uses real Supabase session cookies (no fake dev sessions).
  */
 export async function getSessionUser(): Promise<User | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-  const isPlaceholder = supabaseUrl.includes("placeholder")
-
-  if (!isPlaceholder) {
-    try {
-      const supabase = await createClient()
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser()
-
-      if (!error && user) {
-        return user
-      }
-    } catch {
-      // In development mode, ignore remote fetch errors and fall back to dev session
-    }
+  if (!supabaseUrl || supabaseUrl.includes("placeholder")) {
+    return null
   }
 
-  // Development mode fallback: Read dev_user_email cookie
-  if (process.env.NODE_ENV === "development") {
-    try {
-      const cookieStore = await cookies()
-      const devEmail = cookieStore.get("dev_user_email")?.value
-      if (devEmail && DEV_USERS[devEmail]) {
-        const info = DEV_USERS[devEmail]
-        return {
-          id: `dev-user-${devEmail.replace(/[^a-zA-Z0-9]/g, "-")}`,
-          email: devEmail,
-          app_metadata: {},
-          user_metadata: { full_name: info.name },
-          aud: "authenticated",
-          created_at: new Date().toISOString(),
-        } as User
-      }
-    } catch {
-      // Ignore cookie errors
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+
+    if (!error && user) {
+      return user
     }
+  } catch {
+    return null
   }
 
   return null
@@ -101,171 +55,89 @@ export async function getSessionUser(): Promise<User | null> {
 
 /**
  * Retrieves full user context: User details, platform admin status, and active memberships.
+ * Memberships come strictly from the Supabase memberships table using the user's real session (RLS applies).
  */
 export async function getUserContext(): Promise<UserContext | null> {
   const user = await getSessionUser()
   if (!user) return null
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-  const isPlaceholder = supabaseUrl.includes("placeholder")
-
-  if (!isPlaceholder) {
-    try {
-      const supabase = await createClient()
-
-      // 1. Check Platform Admin
-      const { data: adminRecord } = await supabase
-        .from("platform_admins")
-        .select("user_id")
-        .eq("user_id", user.id)
-        .maybeSingle()
-
-      const isAdmin = Boolean(adminRecord)
-
-      // 2. Fetch memberships with restaurant info
-      let { data: membershipsData } = await supabase
-        .from("memberships")
-        .select(`
-          id,
-          user_id,
-          restaurant_id,
-          role,
-          display_name,
-          email,
-          active,
-          restaurants (
-            id,
-            name,
-            slug,
-            logo_url
-          )
-        `)
-        .eq("user_id", user.id)
-        .eq("active", true)
-
-      // Fallback: If no memberships found by user_id but user.email is present, look up by email
-      if ((!membershipsData || membershipsData.length === 0) && user.email) {
-        const { data: byEmailData } = await supabase
-          .from("memberships")
-          .select(`
-            id,
-            user_id,
-            restaurant_id,
-            role,
-            display_name,
-            email,
-            active,
-            restaurants (
-              id,
-              name,
-              slug,
-              logo_url
-            )
-          `)
-          .eq("email", user.email)
-          .eq("active", true)
-
-        if (byEmailData && byEmailData.length > 0) {
-          membershipsData = byEmailData
-        }
-      }
-
-      if (isAdmin || (membershipsData && membershipsData.length > 0)) {
-        const memberships: UserMembership[] = (membershipsData || []).map((m: {
-          id: string
-          user_id: string
-          restaurant_id: string
-          role: "owner" | "manager" | "kitchen"
-          display_name: string | null
-          email: string | null
-          active: boolean
-          restaurants: { id: string; name: string; slug: string; logo_url: string | null } | { id: string; name: string; slug: string; logo_url: string | null }[] | null
-        }) => {
-          const rest = Array.isArray(m.restaurants) ? m.restaurants[0] : m.restaurants
-          return {
-            id: m.id,
-            user_id: m.user_id,
-            restaurant_id: m.restaurant_id,
-            role: m.role,
-            display_name: m.display_name,
-            email: m.email,
-            active: m.active,
-            restaurant: rest
-              ? {
-                  id: rest.id,
-                  name: rest.name,
-                  slug: rest.slug,
-                  logo_url: rest.logo_url,
-                }
-              : undefined,
-          }
-        })
-
-        return {
-          user,
-          isAdmin,
-          memberships,
-        }
-      }
-    } catch {
-      // In development mode, fall back to seed data if remote database is unreachable
-    }
+  if (!supabaseUrl || supabaseUrl.includes("placeholder")) {
+    return null
   }
 
-  // Development mode: Return seeded context for the logged-in demo user strictly scoped to their restaurant
-  if (process.env.NODE_ENV === "development" && user.email && DEV_USERS[user.email]) {
-    const devInfo = DEV_USERS[user.email]
-    const isAdmin = devInfo.role === "admin"
+  try {
+    const supabase = await createClient()
 
-    let memberships: UserMembership[] = []
-    if (isAdmin) {
-      memberships = [] // Admin has platform_admins only (no memberships)
-    } else if (user.email === "owner.b@demo.test") {
-      memberships = [
-        {
-          id: "dev-mem-2",
-          user_id: user.id,
-          restaurant_id: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
-          role: "owner",
-          display_name: devInfo.name,
-          email: user.email,
-          active: true,
-          restaurant: {
-            id: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
-            name: "Austin Noodle Bar",
-            slug: "austin-noodle-bar",
-            logo_url: null,
-          },
-        },
-      ]
-    } else {
-      memberships = [
-        {
-          id: "dev-mem-1",
-          user_id: user.id,
-          restaurant_id: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-          role: devInfo.role as "owner" | "manager",
-          display_name: devInfo.name,
-          email: user.email,
-          active: true,
-          restaurant: {
-            id: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-            name: "Lone Star Tacos",
-            slug: "lone-star-tacos",
-            logo_url: null,
-          },
-        },
-      ]
-    }
+    // 1. Check Platform Admin
+    const { data: adminRecord } = await supabase
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    const isAdmin = Boolean(adminRecord)
+
+    // 2. Fetch memberships with restaurant info (RLS applies to authenticated user)
+    const { data: membershipsData } = await supabase
+      .from("memberships")
+      .select(`
+        id,
+        user_id,
+        restaurant_id,
+        role,
+        display_name,
+        email,
+        active,
+        restaurants (
+          id,
+          name,
+          slug,
+          logo_url
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("active", true)
+
+    const memberships: UserMembership[] = (membershipsData || []).map((m: {
+      id: string
+      user_id: string
+      restaurant_id: string
+      role: "owner" | "manager" | "kitchen"
+      display_name: string | null
+      email: string | null
+      active: boolean
+      restaurants: { id: string; name: string; slug: string; logo_url: string | null } | { id: string; name: string; slug: string; logo_url: string | null }[] | null
+    }) => {
+      const rest = Array.isArray(m.restaurants) ? m.restaurants[0] : m.restaurants
+      return {
+        id: m.id,
+        user_id: m.user_id,
+        restaurant_id: m.restaurant_id,
+        role: m.role,
+        display_name: m.display_name,
+        email: m.email,
+        active: m.active,
+        restaurant: rest
+          ? {
+              id: rest.id,
+              name: rest.name,
+              slug: rest.slug,
+              logo_url: rest.logo_url,
+            }
+          : undefined,
+      }
+    })
 
     return {
       user,
       isAdmin,
       memberships,
     }
+  } catch (err) {
+    console.error("Error retrieving user context:", err)
+    return null
   }
-
-  return null
 }
 
 /**
@@ -353,6 +225,7 @@ export async function requireOwnerPage(): Promise<{
 /**
  * Returns the currently active restaurant ID for the user from cookies,
  * or defaults to the first restaurant in their memberships.
+ * If user has no membership for that restaurant, ignores it and falls back to their first membership.
  */
 export async function getActiveRestaurantId(): Promise<string | null> {
   const context = await getUserContext()
@@ -369,7 +242,6 @@ export async function getActiveRestaurantId(): Promise<string | null> {
     if (hasMembership) return savedRestaurantId
   }
 
-  // If user has no membership for that restaurant, ignore it and fall back to their first membership
   return context.memberships[0]?.restaurant_id || null
 }
 
@@ -386,7 +258,6 @@ export async function logActivity(
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
     if (supabaseUrl.includes("placeholder")) {
-      // In dev mode with placeholder credentials, log locally
       console.log(`[ACTIVITY LOG] [${actorType}] ${actorName} -> ${action}:`, details)
       return
     }

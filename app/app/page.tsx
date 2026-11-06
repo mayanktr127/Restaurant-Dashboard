@@ -11,7 +11,11 @@ export default async function AppHomePage() {
   const context = await getUserContext()
   if (!context) redirect("/login")
 
-  const restaurantId = (await getActiveRestaurantId()) || "00000000-0000-0000-0000-000000000010"
+  const restaurantId = await getActiveRestaurantId()
+  if (!restaurantId) {
+    if (context.isAdmin) redirect("/admin")
+    redirect("/login")
+  }
 
   const [ordersData, menuData, settingsData, teamData] = await Promise.all([
     getLiveOrders(restaurantId),
@@ -39,7 +43,7 @@ export default async function AppHomePage() {
   return (
     <HomeDashboard
       restaurantId={restaurantId}
-      restaurantName={settingsData.name || "Lone Star Tacos"}
+      restaurantName={settingsData.name || "Restaurant"}
       initialIsOpen={settingsData.is_open}
       orders={allOrders}
       soldOutCount={soldOutCount}

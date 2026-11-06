@@ -40,20 +40,5 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Development mode: Fall back to dev_user_email cookie for instant local developer testing
-  if (!user && process.env.NODE_ENV === "development") {
-    const devEmail = request.cookies.get("dev_user_email")?.value
-    if (devEmail) {
-      user = {
-        id: "dev-user-id",
-        email: devEmail,
-        app_metadata: {},
-        user_metadata: {},
-        aud: "authenticated",
-        created_at: new Date().toISOString(),
-      } as User
-    }
-  }
-
   return { supabaseResponse, user }
 }

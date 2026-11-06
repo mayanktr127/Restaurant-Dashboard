@@ -8,7 +8,11 @@ export default async function SettingsPage() {
   const context = await getUserContext()
   if (!context) redirect("/login")
 
-  const restaurantId = (await getActiveRestaurantId()) || "00000000-0000-0000-0000-000000000010"
+  const restaurantId = await getActiveRestaurantId()
+  if (!restaurantId) {
+    if (context.isAdmin) redirect("/admin")
+    redirect("/login")
+  }
   const settings = await getRestaurantSettings(restaurantId)
 
   const userMembership = context.memberships.find((m) => m.restaurant_id === restaurantId)

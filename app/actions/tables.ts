@@ -19,17 +19,7 @@ const TableSchema = z.object({
   label: z.string().min(1, "Table label is required").max(30),
 })
 
-const DEV_TABLES: TableRecord[] = [
-  { id: "00000000-0000-0000-0000-000000000401", restaurant_id: "00000000-0000-0000-0000-000000000010", label: "Table 1", active: true, sort_order: 1 },
-  { id: "00000000-0000-0000-0000-000000000402", restaurant_id: "00000000-0000-0000-0000-000000000010", label: "Table 2", active: true, sort_order: 2 },
-  { id: "00000000-0000-0000-0000-000000000403", restaurant_id: "00000000-0000-0000-0000-000000000010", label: "Table 3", active: true, sort_order: 3 },
-  { id: "00000000-0000-0000-0000-000000000404", restaurant_id: "00000000-0000-0000-0000-000000000010", label: "Table 4", active: true, sort_order: 4 },
-  { id: "00000000-0000-0000-0000-000000000405", restaurant_id: "00000000-0000-0000-0000-000000000010", label: "Table 5", active: true, sort_order: 5 },
-  { id: "00000000-0000-0000-0000-000000000406", restaurant_id: "00000000-0000-0000-0000-000000000010", label: "Patio A", active: true, sort_order: 6 },
-  { id: "00000000-0000-0000-0000-000000000407", restaurant_id: "00000000-0000-0000-0000-000000000010", label: "Bar 1", active: false, sort_order: 7 },
-]
-
-let devTablesStore = [...DEV_TABLES]
+let devTablesStore: TableRecord[] = []
 
 export async function getTables(restaurantId: string): Promise<TableRecord[]> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
@@ -42,12 +32,12 @@ export async function getTables(restaurantId: string): Promise<TableRecord[]> {
         .eq("restaurant_id", restaurantId)
         .order("sort_order")
 
-      if (!error && data && data.length > 0) return data
+      if (!error && data) return data
     } catch {
       // Fall through to dev tables
     }
   }
-  return devTablesStore
+  return devTablesStore.filter((t) => t.restaurant_id === restaurantId)
 }
 
 export async function addTable(restaurantId: string, label: string) {
@@ -183,8 +173,22 @@ export async function generateQrPdf(
 ): Promise<{ success: boolean; pdfBase64?: string; error?: string }> {
   try {
     const customerMenuUrl = process.env.NEXT_PUBLIC_CUSTOMER_MENU_URL || "http://localhost:3000/menu"
-    const restaurantSlug = "lone-star-tacos"
-    const restaurantName = "Lone Star Tacos"
+    let restaurantSlug = "restaurant"
+    let restaurantName = "Restaurant"
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+    if (!supabaseUrl.includes("placeholder")) {
+      try {
+        const admin = createAdminClient()
+        const { data: rest } = await admin.from("restaurants").select("name, slug").eq("id", restaurantId).maybeSingle()
+        if (rest) {
+          restaurantSlug = rest.slug
+          restaurantName = rest.name
+        }
+      } catch {
+        // use defaults
+      }
+    }
 
     const pdfDoc = await PDFDocument.create()
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)

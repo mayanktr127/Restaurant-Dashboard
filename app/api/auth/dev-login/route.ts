@@ -1,32 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
-const DEMO_ACCOUNTS: Record<
-  string,
-  { role: "admin" | "owner" | "manager"; restaurantId: string; name: string }
-> = {
-  "admin@demo.test": {
-    role: "admin",
-    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-    name: "System Admin",
-  },
-  "owner.a@demo.test": {
-    role: "owner",
-    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-    name: "Alice Owner",
-  },
-  "manager.a@demo.test": {
-    role: "manager",
-    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
-    name: "Bob Manager",
-  },
-  "owner.b@demo.test": {
-    role: "owner",
-    restaurantId: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
-    name: "Charlie Owner",
-  },
-}
-
 export async function POST(request: NextRequest) {
   if (process.env.NODE_ENV !== "development") {
     return NextResponse.json(
@@ -47,83 +21,71 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const demoAccount = DEMO_ACCOUNTS[email]
-    if (!demoAccount) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+    const supabaseAnonKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      ""
+
+    if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes("placeholder")) {
       return NextResponse.json(
-        { error: "Unknown seed account. Select one from the dev dropdown." },
-        { status: 400 }
+        { error: "Supabase credentials are not configured in .env.local" },
+        { status: 500 }
       )
     }
 
-    if (password !== "DemoPass123!") {
+    let response = NextResponse.json({
+      success: true,
+      destination: "/app",
+    })
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.json({
+            success: true,
+            destination: "/app",
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
+    })
+
+    // Perform real Supabase authentication
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error || !data.user) {
       return NextResponse.json(
-        { error: "Invalid password for seed account. Default is DemoPass123!" },
+        { error: error?.message || "Invalid credentials" },
         { status: 401 }
       )
     }
 
-    const destination = demoAccount.role === "admin" ? "/admin" : "/app"
+    // Check if user is platform admin to determine destination
+    const { data: adminRecord } = await supabase
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", data.user.id)
+      .maybeSingle()
 
-    const response = NextResponse.json({
-      success: true,
-      destination,
-      user: {
-        email,
-        role: demoAccount.role,
-        name: demoAccount.name,
-      },
-    })
+    const destination = adminRecord ? "/admin" : "/app"
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-    const isPlaceholder =
-      !supabaseUrl ||
-      !supabaseAnonKey ||
-      supabaseUrl.includes("placeholder") ||
-      supabaseAnonKey.includes("placeholder")
-
-    // If real Supabase credentials are configured, authenticate against Supabase Auth
-    if (!isPlaceholder) {
-      try {
-        const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-          cookies: {
-            getAll() {
-              return request.cookies.getAll()
-            },
-            setAll(cookiesToSet) {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                response.cookies.set(name, value, options)
-              )
-            },
-          },
-        })
-
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
-      } catch (authErr) {
-        console.warn("Supabase auth attempted but failed, falling back to dev session:", authErr)
+    // Return the response with real session cookies attached
+    return NextResponse.json(
+      { success: true, destination },
+      {
+        headers: response.headers,
       }
-    }
-
-    // Set dev_user_email cookie for instant local developer experience
-    response.cookies.set("dev_user_email", email, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    })
-
-    // Set selected_restaurant_id cookie
-    response.cookies.set("selected_restaurant_id", demoAccount.restaurantId, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-    })
-
-    return response
+    )
   } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Dev login failed" },
@@ -131,4 +93,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

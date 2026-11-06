@@ -43,59 +43,7 @@ export interface KitchenInitData {
   isRevoked: boolean
 }
 
-// Dev fallback tickets
-const DEV_KITCHEN_TICKETS: KitchenTicket[] = [
-  {
-    order_id: "dev-ticket-1",
-    restaurant_id: "00000000-0000-0000-0000-000000000010",
-    order_number: "ORD1",
-    order_type: "table",
-    table_label: "Table 4",
-    customer_first_name: "Carlos",
-    notes: "ALLERGY: NO CILANTRO ON TACOS",
-    items: [
-      { name: "Smoked Brisket Taco", qty: 2, notes: "Corn tortilla" },
-      { name: "Chips & Fresh Guac", qty: 1 },
-      { name: "House Horchata", qty: 2 },
-    ],
-    status: "new",
-    created_at: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
-  },
-  {
-    order_id: "dev-ticket-2",
-    restaurant_id: "00000000-0000-0000-0000-000000000010",
-    order_number: "ORD2",
-    order_type: "pickup",
-    customer_first_name: "Sarah",
-    notes: null,
-    items: [
-      { name: "Baja Fish Taco", qty: 3, notes: "Extra chipotle slaw" },
-      { name: "Warm Queso Dip", qty: 1 },
-    ],
-    status: "cooking",
-    created_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-    started_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-  },
-  {
-    order_id: "dev-ticket-3",
-    restaurant_id: "00000000-0000-0000-0000-000000000010",
-    order_number: "ORD3",
-    order_type: "table",
-    table_label: "Table 7",
-    customer_first_name: "John",
-    notes: "RUSH ORDER - Table anniversary",
-    items: [
-      { name: "Crispy Carnitas Taco", qty: 4 },
-      { name: "Mexican Coke", qty: 2 },
-    ],
-    status: "ready",
-    created_at: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
-    started_at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
-    ready_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-  },
-]
-
-let devTicketsStore = [...DEV_KITCHEN_TICKETS]
+let devTicketsStore: KitchenTicket[] = []
 
 /**
  * 1. Fetch initial kitchen board data (tickets, restaurant configuration, PIN requirement)
@@ -200,10 +148,10 @@ export async function getKitchenData(restaurantId: string): Promise<KitchenInitD
 
   return {
     restaurantId,
-    restaurantName: "Lone Star Tacos (Kitchen)",
+    restaurantName: "Kitchen Display",
     kitchenCanSoldout: true,
     hasActivePins: false,
-    tickets: devTicketsStore.filter((t) => t.status !== "collected"),
+    tickets: devTicketsStore.filter((t) => t.restaurant_id === restaurantId && t.status !== "collected"),
     isRevoked: false,
   }
 }

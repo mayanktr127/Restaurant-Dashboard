@@ -7,7 +7,10 @@ import { TeamManager } from "@/components/team/TeamManager"
 export default async function TeamPage() {
   await requireOwnerPage()
 
-  const restaurantId = (await getActiveRestaurantId()) || "00000000-0000-0000-0000-000000000010"
+  const restaurantId = await getActiveRestaurantId()
+  if (!restaurantId) {
+    return null
+  }
 
   const [teamData, settings] = await Promise.all([
     getTeamData(restaurantId),
@@ -17,7 +20,7 @@ export default async function TeamPage() {
   return (
     <TeamManager
       restaurantId={restaurantId}
-      restaurantName={settings.name || "Lone Star Tacos"}
+      restaurantName={settings.name || "Restaurant"}
       initialData={teamData}
     />
   )

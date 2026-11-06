@@ -37,79 +37,6 @@ const UpdateStatusSchema = z.object({
   staffName: z.string().optional(),
 })
 
-// In-memory fallback for local dev testing when remote database is not connected
-const DEV_ORDERS: OrderRecord[] = [
-  {
-    id: "00000000-0000-0000-0000-000000000101",
-    order_number: "ORD-12",
-    order_type: "table",
-    table_label: "Table 4",
-    notes: "No cilantro on tacos please",
-    total_cents: 1850,
-    status: "new",
-    created_at: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-    items: [
-      { id: "item-1", name: "Smoked Brisket Taco", qty: 2, unit_price_cents: 450, notes: "Corn tortilla" },
-      { id: "item-2", name: "Chips & Fresh Guac", qty: 1, unit_price_cents: 550 },
-      { id: "item-3", name: "House Horchata", qty: 1, unit_price_cents: 400 },
-    ],
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000102",
-    order_number: "ORD-13",
-    order_type: "pickup",
-    customer_name: "Sarah Miller",
-    total_cents: 2200,
-    status: "new",
-    created_at: new Date(Date.now() - 7 * 60 * 1000).toISOString(),
-    items: [
-      { id: "item-4", name: "Baja Fish Taco", qty: 3, unit_price_cents: 500 },
-      { id: "item-5", name: "Mexican Street Corn (Elote)", qty: 1, unit_price_cents: 700 },
-    ],
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000103",
-    order_number: "ORD-09",
-    order_type: "table",
-    table_label: "Table 2",
-    total_cents: 1450,
-    status: "cooking",
-    created_at: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
-    started_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-    items: [
-      { id: "item-6", name: "Carnitas Street Taco", qty: 2, unit_price_cents: 450 },
-      { id: "item-7", name: "Warm Queso Blanco Dip", qty: 1, unit_price_cents: 550 },
-    ],
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000104",
-    order_number: "ORD-07",
-    order_type: "table",
-    table_label: "Table 5",
-    total_cents: 2600,
-    status: "ready",
-    created_at: new Date(Date.now() - 21 * 60 * 1000).toISOString(),
-    ready_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    items: [
-      { id: "item-8", name: "Al Pastor Taco Platter", qty: 1, unit_price_cents: 1800 },
-      { id: "item-9", name: "Mexican Coke", qty: 2, unit_price_cents: 400 },
-    ],
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000105",
-    order_number: "ORD-05",
-    order_type: "pickup",
-    customer_name: "David Kim",
-    total_cents: 1500,
-    status: "collected",
-    created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    collected_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-    items: [
-      { id: "item-10", name: "Crispy Birria Quesadilla", qty: 1, unit_price_cents: 1500 },
-    ],
-  },
-]
-
 interface DbOrderItem {
   id: string
   name: string
@@ -135,7 +62,7 @@ interface DbOrder {
   order_items?: DbOrderItem[]
 }
 
-const devOrdersStore = [...DEV_ORDERS]
+const devOrdersStore: OrderRecord[] = []
 
 export async function getLiveOrders(restaurantId: string): Promise<{
   new: OrderRecord[]
@@ -206,11 +133,10 @@ export async function getLiveOrders(restaurantId: string): Promise<{
         }
       }
     } catch {
-      // Fallback to dev store if database query fails
+      // Fallback if database query fails
     }
   }
 
-  // Fallback dev data
   return {
     new: devOrdersStore.filter((o) => o.status === "new" || o.status === "problem"),
     cooking: devOrdersStore.filter((o) => o.status === "cooking"),

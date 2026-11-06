@@ -32,7 +32,7 @@ const ADMIN_NAV = [
   { label: "Support Requests", href: "/admin/support", icon: LifeBuoy },
 ]
 
-export function AdminLayout({ children, userEmail = "admin@demo.test" }: AdminLayoutProps) {
+export function AdminLayout({ children, userEmail = "" }: AdminLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)

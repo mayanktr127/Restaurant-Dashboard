@@ -9,7 +9,11 @@ export default async function MenuPage() {
   const context = await getUserContext()
   if (!context) redirect("/login")
 
-  const restaurantId = (await getActiveRestaurantId()) || "00000000-0000-0000-0000-000000000010"
+  const restaurantId = await getActiveRestaurantId()
+  if (!restaurantId) {
+    if (context.isAdmin) redirect("/admin")
+    redirect("/login")
+  }
 
   const [menuData, settings] = await Promise.all([
     getMenuData(restaurantId),
@@ -24,7 +28,7 @@ export default async function MenuPage() {
   return (
     <MenuManager
       restaurantId={restaurantId}
-      restaurantName={settings.name || "Lone Star Tacos"}
+      restaurantName={settings.name || "Restaurant"}
       initialCategories={menuData.categories}
       initialItems={menuData.items}
       userRole={userRole}
