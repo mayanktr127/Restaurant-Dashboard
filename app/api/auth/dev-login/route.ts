@@ -7,22 +7,22 @@ const DEMO_ACCOUNTS: Record<
 > = {
   "admin@demo.test": {
     role: "admin",
-    restaurantId: "demo-restaurant-a",
+    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
     name: "System Admin",
   },
   "owner.a@demo.test": {
     role: "owner",
-    restaurantId: "demo-restaurant-a",
+    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
     name: "Alice Owner",
   },
   "manager.a@demo.test": {
     role: "manager",
-    restaurantId: "demo-restaurant-a",
+    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
     name: "Bob Manager",
   },
   "owner.b@demo.test": {
     role: "owner",
-    restaurantId: "demo-restaurant-b",
+    restaurantId: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
     name: "Charlie Owner",
   },
 }

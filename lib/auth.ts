@@ -33,22 +33,22 @@ const DEV_USERS: Record<
   "admin@demo.test": {
     role: "admin",
     name: "System Admin",
-    restaurantId: "00000000-0000-0000-0000-000000000010",
+    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
   },
   "owner.a@demo.test": {
     role: "owner",
     name: "Alice Owner",
-    restaurantId: "00000000-0000-0000-0000-000000000010",
+    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
   },
   "manager.a@demo.test": {
     role: "manager",
     name: "Bob Manager",
-    restaurantId: "00000000-0000-0000-0000-000000000010",
+    restaurantId: "529510ac-c83f-4be5-875b-5c1b8390fe12",
   },
   "owner.b@demo.test": {
     role: "owner",
     name: "Charlie Owner",
-    restaurantId: "00000000-0000-0000-0000-000000000020",
+    restaurantId: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
   },
 }
 
@@ -123,7 +123,7 @@ export async function getUserContext(): Promise<UserContext | null> {
       const isAdmin = Boolean(adminRecord)
 
       // 2. Fetch memberships with restaurant info
-      const { data: membershipsData } = await supabase
+      let { data: membershipsData } = await supabase
         .from("memberships")
         .select(`
           id,
@@ -142,6 +142,33 @@ export async function getUserContext(): Promise<UserContext | null> {
         `)
         .eq("user_id", user.id)
         .eq("active", true)
+
+      // Fallback: If no memberships found by user_id but user.email is present, look up by email
+      if ((!membershipsData || membershipsData.length === 0) && user.email) {
+        const { data: byEmailData } = await supabase
+          .from("memberships")
+          .select(`
+            id,
+            user_id,
+            restaurant_id,
+            role,
+            display_name,
+            email,
+            active,
+            restaurants (
+              id,
+              name,
+              slug,
+              logo_url
+            )
+          `)
+          .eq("email", user.email)
+          .eq("active", true)
+
+        if (byEmailData && byEmailData.length > 0) {
+          membershipsData = byEmailData
+        }
+      }
 
       if (membershipsData && membershipsData.length > 0) {
         const memberships: UserMembership[] = membershipsData.map((m: {
@@ -185,43 +212,51 @@ export async function getUserContext(): Promise<UserContext | null> {
     }
   }
 
-  // Development mode: Return seeded context for the logged-in demo user
+  // Development mode: Return seeded context for the logged-in demo user strictly scoped to their restaurant
   if (process.env.NODE_ENV === "development" && user.email && DEV_USERS[user.email]) {
     const devInfo = DEV_USERS[user.email]
     const isAdmin = devInfo.role === "admin"
 
-    const memberships: UserMembership[] = [
-      {
-        id: "dev-mem-1",
-        user_id: user.id,
-        restaurant_id: "00000000-0000-0000-0000-000000000010",
-        role: (isAdmin ? "owner" : devInfo.role) as "owner" | "manager",
-        display_name: devInfo.name,
-        email: user.email,
-        active: true,
-        restaurant: {
-          id: "00000000-0000-0000-0000-000000000010",
-          name: "Lone Star Tacos",
-          slug: "lone-star-tacos",
-          logo_url: null,
-        },
+    const loneStarMembership: UserMembership = {
+      id: "dev-mem-1",
+      user_id: user.id,
+      restaurant_id: "529510ac-c83f-4be5-875b-5c1b8390fe12",
+      role: (isAdmin ? "owner" : devInfo.role) as "owner" | "manager",
+      display_name: devInfo.name,
+      email: user.email,
+      active: true,
+      restaurant: {
+        id: "529510ac-c83f-4be5-875b-5c1b8390fe12",
+        name: "Lone Star Tacos",
+        slug: "lone-star-tacos",
+        logo_url: null,
       },
-      {
-        id: "dev-mem-2",
-        user_id: user.id,
-        restaurant_id: "00000000-0000-0000-0000-000000000020",
-        role: isAdmin ? "owner" : user.email === "owner.b@demo.test" ? "owner" : "manager",
-        display_name: devInfo.name,
-        email: user.email,
-        active: true,
-        restaurant: {
-          id: "00000000-0000-0000-0000-000000000020",
-          name: "Austin Noodle Bar",
-          slug: "austin-noodle-bar",
-          logo_url: null,
-        },
+    }
+
+    const noodleBarMembership: UserMembership = {
+      id: "dev-mem-2",
+      user_id: user.id,
+      restaurant_id: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
+      role: "owner",
+      display_name: devInfo.name,
+      email: user.email,
+      active: true,
+      restaurant: {
+        id: "9f628688-fbd8-40cf-816f-e1a2627e1c16",
+        name: "Austin Noodle Bar",
+        slug: "austin-noodle-bar",
+        logo_url: null,
       },
-    ]
+    }
+
+    let memberships: UserMembership[] = []
+    if (isAdmin) {
+      memberships = [loneStarMembership, noodleBarMembership]
+    } else if (user.email === "owner.b@demo.test") {
+      memberships = [noodleBarMembership]
+    } else {
+      memberships = [loneStarMembership]
+    }
 
     return {
       user,
@@ -332,7 +367,7 @@ export async function getActiveRestaurantId(): Promise<string | null> {
     if (hasMembership) return savedRestaurantId
   }
 
-  return context.memberships[0]?.restaurant_id || "00000000-0000-0000-0000-000000000010"
+  return context.memberships[0]?.restaurant_id || "529510ac-c83f-4be5-875b-5c1b8390fe12"
 }
 
 /**
